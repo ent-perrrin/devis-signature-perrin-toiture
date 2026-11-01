@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Toiture Univers">
+<meta name="theme-color" content="#ffffff">
+<title>Mesure Toiture – L'Univers de la Rénovation</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  :root {
+    --bg: #edeff1; --surface: #ffffff; --ink: #1c2127; --muted: #5d6872; --line: #d3d8dc;
+    --accent: #1f5f8b; --accent-ink: #ffffff; --danger: #b3382f;
+    --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --f-body: "Barlow", system-ui, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14181c; --surface: #1d2329; --ink: #e8ecef; --muted: #98a4ad; --line: #333c44;
+      --accent: #5aa9de; --accent-ink: #0b1722; --danger: #ef7d73; color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); font: 400 15px/1.45 var(--f-body);
+    padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 12px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  h1 { font: 700 24px/1 var(--f-display); letter-spacing: .02em; margin: 0; text-transform: uppercase; }
+  .sub { color: var(--muted); font-size: 13px; display: block; margin-top: 3px; text-transform: none; font-family: var(--f-body); font-weight: 400; letter-spacing: 0; }
+  .total { font: 700 30px/1 var(--f-display); text-align: right; font-variant-numeric: tabular-nums; }
+  .total small { font: 600 16px var(--f-display); color: var(--muted); margin-left: 3px; }
+  .search { display: flex; gap: 8px; }
+  .search input { flex: 1; }
+  input[type=number], input[type=text], select {
+    font: 500 15px/1 var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 11px 12px; min-height: 44px; min-width: 0;
+  }
+  input[type=number], select { font-family: var(--f-mono); }
+  .btn {
+    appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    font: 600 14px/1 var(--f-body); padding: 11px 14px; border-radius: 8px; cursor: pointer; min-height: 44px;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn[disabled] { opacity: .4; cursor: default; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.on { border-color: var(--accent); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .btn.danger { color: var(--danger); }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; }
+  .hint { font-size: 14px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 6px; padding: 9px 12px; min-height: 42px; }
+  .layout { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+  @media (min-width: 920px) { .layout { grid-template-columns: minmax(0, 1.6fr) minmax(330px, 1fr); } }
+  .col { display: grid; gap: 10px; min-width: 0; }
+  .stage { position: relative; height: clamp(380px, 64vh, 720px); border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #1c2127; }
+  #map { position: absolute; inset: 0; cursor: crosshair; }
+  .cross { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; pointer-events: none; z-index: 650; }
+  .cross::before, .cross::after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 0 1px #1c2127; }
+  .cross::before { left: 21px; top: 0; width: 2px; height: 44px; }
+  .cross::after { top: 21px; left: 0; height: 2px; width: 44px; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 12px; }
+  .panel h2 { font: 700 15px/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; margin: 0; color: var(--muted); }
+  .big { display: flex; align-items: baseline; gap: 8px; }
+  .big .n { font: 700 56px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+  .big .u { font: 600 22px/1 var(--f-display); color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kv { border-top: 1px solid var(--line); padding-top: 8px; }
+  .kv span { display: block; font-size: 12px; color: var(--muted); }
+  .kv b { font: 500 17px/1.3 var(--f-mono); font-variant-numeric: tabular-nums; }
+  ul.pans { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .pan { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto auto; gap: 8px 10px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; }
+  .pn strong { display: block; font: 600 15px/1.2 var(--f-body); }
+  .pn small { color: var(--muted); font: 500 12px/1.2 var(--f-mono); }
+  .re { font: 500 15px/1 var(--f-mono); text-align: right; font-variant-numeric: tabular-nums; }
+  .slope { grid-column: 2 / -1; display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+  .slope input { width: 84px; }
+  .del { width: 38px; height: 38px; padding: 0; min-height: 0; }
+  .empty { color: var(--muted); font-size: 14px; margin: 0; }
+  .row { display: grid; gap: 10px; }
+  .row label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .note { font-size: 12px; color: var(--muted); margin: 0; }
+  .status { font-size: 13px; color: var(--accent); min-height: 18px; }
+  details textarea { width: 100%; min-height: 150px; font: 500 12px/1.5 var(--f-mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px; resize: vertical; }
+  summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+
+  /* points sur la carte : zone tactile 30 px, pastille 14 px */
+  .vx { cursor: grab; }
+  .vx i { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; border: 3px solid #1c2127; box-sizing: border-box; transition: box-shadow .1s; }
+  .vx.shared i { box-shadow: 0 0 0 4px #5aa9de; }
+  .vx.first i, .vx.near i { box-shadow: 0 0 0 7px rgba(90,169,222,.6); }
+  .el { pointer-events: none; }
+  .el span { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font: 500 11px/1 var(--f-mono); color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000, 0 0 2px #000; }
+  .el-a span { font-size: 14px; font-weight: 500; }
+  .leaflet-container { font-family: var(--f-body); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>L’Univers de la Rénovation<span class="sub">Mesure de toiture sur photo aérienne</span></h1>
+    <div class="total"><span id="hTotal">0</span><small>m²</small></div>
+  </header>
+
+  <form class="search" id="searchForm">
+    <input type="text" id="addr" placeholder="Adresse du chantier" autocomplete="street-address" aria-label="Adresse du chantier">
+    <button class="btn primary" type="submit">Chercher</button>
+  </form>
+  <div class="status" id="geoStatus" role="status"></div>
+
+  <div class="layout">
+    <div class="col">
+      <div class="hint" id="hint" role="status"></div>
+      <div class="stage">
+        <div id="map"></div>
+        <div class="cross" id="cross" hidden></div>
+      </div>
+      <div class="tools">
+        <button class="btn primary" id="bPlace" type="button" hidden>Poser le point ici</button>
+        <button class="btn" id="bUndo" type="button">↶ Annuler le point</button>
+        <button class="btn" id="bClose" type="button">Fermer le pan</button>
+        <button class="btn" id="bAim" type="button" aria-pressed="false">Viseur</button>
+        <button class="btn" id="bBase" type="button">Fond IGN</button>
+        <button class="btn" id="bLoc" type="button">Ma position</button>
+        <button class="btn danger" id="bClear" type="button">Tout effacer</button>
+      </div>
+      <p class="note">Touche la carte pour poser un point où tu veux. Touche un point existant pour t’y accrocher : les deux pans le partagent. Glisse un point pour l’ajuster, dépose-le sur un autre pour les fusionner.</p>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <h2>Surface réelle à traiter</h2>
+        <div class="big"><span class="n" id="tReal">0</span><span class="u">m²</span></div>
+        <div class="grid2">
+          <div class="kv"><span>Emprise au sol (vue du dessus)</span><b id="tGround">0 m²</b></div>
+          <div class="kv"><span>Majoration liée à la pente</span><b id="tMaj">+0 %</b></div>
+          <div class="kv"><span>Périmètre (zinguerie, rives)</span><b id="tPeri">0 m</b></div>
+          <div class="kv"><span>Estimation</span><b id="tCost">0 €</b></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Pente de chaque pan</h2>
+        <ul class="pans" id="list"></ul>
+        <p class="empty" id="listEmpty">Aucun pan. Pose au moins 3 points puis touche le premier pour fermer.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Devis</h2>
+        <div class="row">
+          <label for="price">Prix au m² (exemple, à remplacer)
+            <input type="number" id="price" inputmode="decimal" min="0" step="1" value="85">
+          </label>
+        </div>
+        <button class="btn primary" id="bCopy" type="button">Copier le récapitulatif</button>
+        <div class="status" id="status" role="status"></div>
+        <details id="sumBox"><summary>Voir le texte</summary><textarea id="summary" readonly></textarea></details>
+        <p class="note">Estimation indicative. Mesure à confirmer sur place. Longueurs prises à plat, seule la surface est majorée par la pente.</p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const COLORS = ['#ff9f43', '#2ed1b5', '#ff6bd6', '#ffd23f', '#6aa9ff', '#ff6b6b'];
+  const SNAP = 16;                      // rayon d'accroche en pixels
+  const V = new Map(), M = new Map();   // sommets, marqueurs
+  let pans = [], draft = null, uid = 1, pc = 0, aim = false, baseName = 'esri';
+
+  const fmt = (v, d = 1) => v == null || !isFinite(v) ? '—' : v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  /* ---------- carte ---------- */
+  const map = L.map('map', { zoomControl: false, maxZoom: 21, doubleClickZoom: false }).setView([46.6, 2.4], 6);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+  const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 21, maxNativeZoom: 19, attribution: 'Imagerie © Esri' });
+  const ign = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { maxZoom: 21, maxNativeZoom: 19, attribution: '© IGN' });
+  esri.addTo(map);
+  const sg = L.layerGroup().addTo(map), mg = L.layerGroup().addTo(map), rbg = L.layerGroup().addTo(map);
+
+  const draftPan = () => pans.find(p => p.id === draft && !p.closed) || null;
+  const closedPans = () => pans.filter(p => p.closed);
+  const centerCP = () => map.getSize().divideBy(2);
+
+  function near(cp, ex) {
+    let b = null, bd = SNAP;
+    V.forEach(v => {
+      if (v.id === ex) return;
+      const p = map.latLngToContainerPoint([v.lat, v.lng]), d = Math.hypot(p.x - cp.x, p.y - cp.y);
+      if (d <= bd) { bd = d; b = v.id; }
+    });
+    return b;
+  }
+
+  /* ---------- calculs ---------- */
+  function theta(p) {
+    const v = parseFloat(p.slope) || 0;
+    return p.unit === '%' ? Math.atan(v / 100) : Math.min(Math.max(v, 0), 85) * Math.PI / 180;
+  }
+  function groundArea(p) {
+    const vs = p.ids.map(i => V.get(i)), o = vs[0];
+    const kx = Math.cos(o.lat * Math.PI / 180) * 111320, ky = 110574;
+    const q = vs.map(v => ({ x: (v.lng - o.lng) * kx, y: (v.lat - o.lat) * ky }));
+    let a = 0;
+    for (let j = 0; j < q.length; j++) { const n = q[(j + 1) % q.length]; a += q[j].x * n.y - n.x * q[j].y; }
+    return Math.abs(a) / 2;
+  }
+  function pansData() {
+    return closedPans().map((p, i) => {
+      const ground = groundArea(p);
+      return { p, i, ground, real: ground / Math.cos(theta(p)) };
+    });
+  }
+  function perimeter() {
+    const cnt = new Map();
+    closedPans().forEach(p => p.ids.forEach((id, j) => {
+      const o = p.ids[(j + 1) % p.ids.length], k = Math.min(id, o) + '-' + Math.max(id, o);
+      cnt.set(k, (cnt.get(k) || 0) + 1);
+    }));
+    let t = 0;
+    cnt.forEach((n, k) => { if (n === 1) { const [a, b] = k.split('-').map(Number); t += L.latLng(V.get(a).lat, V.get(a).lng).distanceTo([V.get(b).lat, V.get(b).lng]); } });
+    return t;
+  }
+
+  /* ---------- dessin sur la carte ---------- */
+  function label(ll, t, cls) {
+    L.marker(ll, { interactive: false, keyboard: false, zIndexOffset: -100, icon: L.divIcon({ className: 'el ' + cls, html: '<span>' + t + '</span>', iconSize: [0, 0] }) }).addTo(sg);
+  }
+  function shapes() {
+    sg.clearLayers();
+    const seen = new Set(), edges = [];
+    pans.forEach(p => {
+      const ll = p.ids.map(i => V.get(i)).filter(Boolean).map(v => [v.lat, v.lng]);
+      if (p.closed) L.polygon(ll, { color: p.color, weight: 3, fillColor: p.color, fillOpacity: .28, interactive: false }).addTo(sg);
+      else if (ll.length > 1) L.polyline(ll, { color: p.color, weight: 3, interactive: false }).addTo(sg);
+      const n = p.ids.length, cnt = p.closed ? n : n - 1;
+      for (let j = 0; j < cnt; j++) {
+        const a = p.ids[j], b = p.ids[(j + 1) % n], k = Math.min(a, b) + '-' + Math.max(a, b);
+        if (!seen.has(k)) { seen.add(k); edges.push([V.get(a), V.get(b)]); }
+      }
+    });
+    edges.forEach(([a, b]) => {
+      const A = map.latLngToContainerPoint([a.lat, a.lng]), B = map.latLngToContainerPoint([b.lat, b.lng]);
+      if (Math.hypot(A.x - B.x, A.y - B.y) < 64) return;
+      label([(a.lat + b.lat) / 2, (a.lng + b.lng) / 2], fmt(L.latLng(a.lat, a.lng).distanceTo([b.lat, b.lng])) + ' m', 'el-e');
+    });
+    pansData().forEach(({ p, real }) => {
+      const vs = p.ids.map(i => V.get(i));
+      label([vs.reduce((s, v) => s + v.lat, 0) / vs.length, vs.reduce((s, v) => s + v.lng, 0) / vs.length], fmt(real) + ' m²', 'el-a');
+    });
+  }
+  function rbUpdate(cp) {
+    rbg.clearLayers();
+    const d = draftPan(); if (!d || !d.ids.length || !cp) return;
+    const last = V.get(d.ids[d.ids.length - 1]), hit = near(cp);
+    const tgt = hit != null ? [V.get(hit).lat, V.get(hit).lng] : map.containerPointToLatLng(cp);
+    L.polyline([[last.lat, last.lng], tgt], { color: d.color, weight: 2.5, dashArray: '6 6', interactive: false }).addTo(rbg);
+    markNear(hit);
+  }
+  function markNear(id) {
+    M.forEach((m, k) => { const el = m.getElement(); if (el) el.classList.toggle('near', k === id); });
+  }
+
+  function mk(v) {
+    const m = L.marker([v.lat, v.lng], {
+      draggable: true, keyboard: false, autoPan: false, zIndexOffset: 500,
+      icon: L.divIcon({ className: 'vx', html: '<i></i>', iconSize: [30, 30], iconAnchor: [15, 15] })
+    });
+    m.on('drag', () => {
+      const p = m.getLatLng(); v.lat = p.lat; v.lng = p.lng;
+      shapes(); figures(); markNear(near(map.latLngToContainerPoint(p), v.id));
+    });
+    m.on('dragend', () => {
+      markNear(null);
+      const t = near(map.latLngToContainerPoint(m.getLatLng()), v.id);
+      if (t != null) merge(v.id, t); else sync();
+    });
+    m.on('click', () => { if (!aim) tapVertex(v.id); else tapVertex(v.id); });
+    m.addTo(mg); M.set(v.id, m);
+  }
+
+  /* ---------- logique des points ---------- */
+  function startDraft() {
+    const d = { id: uid++, ids: [], closed: false, slope: 30, unit: '%', color: COLORS[pc++ % COLORS.length] };
+    pans.push(d); draft = d.id; return d;
+  }
+  function tapVertex(id) {
+    const d = draftPan() || startDraft();
+    if (d.ids.length >= 3 && id === d.ids[0]) { closeDraft(); return; }
+    if (!d.ids.includes(id)) d.ids.push(id);
+    sync();
+  }
+  function tapAt(cp) {
+    const hit = near(cp);
+    if (hit != null) { tapVertex(hit); return; }
+    const d = draftPan() || startDraft(), ll = map.containerPointToLatLng(cp), id = uid++;
+    V.set(id, { id, lat: ll.lat, lng: ll.lng });
+    d.ids.push(id); sync();
+  }
+  function closeDraft() {
+    const d = draftPan(); if (!d || d.ids.length < 3) return;
+    d.closed = true; draft = null; renderList(); sync();
+  }
+  function merge(a, b) {
+    pans.forEach(p => {
+      let ids = p.ids.map(i => i === a ? b : i);
+      ids = ids.filter((id, i) => id !== ids[i - 1]);
+      if (p.closed && ids.length > 1 && ids[0] === ids[ids.length - 1]) ids.pop();
+      p.ids = ids;
+    });
+    pans = pans.filter(p => p.closed ? p.ids.length >= 3 : p.ids.length > 0);
+    if (!draftPan()) draft = null;
+    renderList(); sync();
+  }
+  function undo() {
+    const d = draftPan();
+    if (d) { d.ids.pop(); if (!d.ids.length) { pans = pans.filter(x => x !== d); draft = null; } }
+    else if (pans.length) { pans.pop(); renderList(); }
+    sync();
+  }
+  function clearAll() {
+    pans = []; draft = null; renderList(); sync(); rbg.clearLayers();
+  }
+  function sync() {
+    const used = new Map();
+    pans.forEach(p => p.ids.forEach(i => used.set(i, (used.get(i) || 0) + 1)));
+    [...V.keys()].forEach(id => { if (!used.has(id)) V.delete(id); });
+    [...M.keys()].forEach(id => { if (!V.has(id)) { mg.removeLayer(M.get(id)); M.delete(id); } });
+    V.forEach(v => { if (!M.has(v.id)) mk(v); });
+    const d = draftPan();
+    M.forEach((m, id) => {
+      const el = m.getElement(); if (!el) return;
+      el.classList.toggle('shared', (used.get(id) || 0) > 1);
+      el.classList.toggle('first', !!d && d.ids.length >= 3 && d.ids[0] === id);
+    });
+    updateUI(); shapes(); figures(); save();
+  }
+
+  /* ---------- interface ---------- */
+  function updateUI() {
+    const d = draftPan(), n = d ? d.ids.length : 0;
+    let h;
+    if (d) h = `Pan en cours · ${n} point${n > 1 ? 's' : ''}. Touche où tu veux, ou sur un point existant pour t’y accrocher.` + (n >= 3 ? ' Touche le 1er point pour fermer.' : '');
+    else if (!closedPans().length) h = V.size || map.getZoom() > 15 ? 'Touche la carte pour poser un premier point sur un coin du toit.' : 'Entre l’adresse du chantier puis zoome sur le toit.';
+    else h = 'Touche pour démarrer un nouveau pan. Glisse un point pour l’ajuster.';
+    if (aim) h += ' Viseur actif : place le centre de la carte puis « Poser le point ici ».';
+    $('hint').textContent = h;
+    $('bClose').disabled = !(d && n >= 3);
+    $('bUndo').disabled = !pans.length;
+    $('bClear').disabled = !pans.length;
+  }
+  function renderList() {
+    const data = pansData();
+    $('listEmpty').hidden = data.length > 0;
+    $('list').innerHTML = data.map(({ p, i }) => `
+      <li class="pan" data-id="${p.id}">
+        <span class="sw" style="background:${p.color}"></span>
+        <div class="pn"><strong>Pan ${i + 1}</strong><small>emprise <span data-g></span> m²</small></div>
+        <div class="re"><span data-r></span> m²</div>
+        <button class="btn del" data-del type="button" aria-label="Supprimer le pan ${i + 1}">×</button>
+        <div class="slope">
+          <label for="sl-${p.id}">Pente</label>
+          <input type="number" id="sl-${p.id}" data-slope inputmode="decimal" min="0" step="1" value="${p.slope}">
+          <select id="un-${p.id}" data-unit aria-label="Unité de pente">
+            <option value="%"${p.unit === '%' ? ' selected' : ''}>%</option>
+            <option value="°"${p.unit === '°' ? ' selected' : ''}>°</option>
+          </select>
+        </div>
+      </li>`).join('');
+    figures();
+  }
+  function figures() {
+    const data = pansData(); let G = 0, Rl = 0;
+    data.forEach(({ p, ground, real }) => {
+      const li = $('list').querySelector(`[data-id="${p.id}"]`);
+      if (li) { li.querySelector('[data-g]').textContent = fmt(ground); li.querySelector('[data-r]').textContent = fmt(real); }
+      G += ground; Rl += real;
+    });
+    const per = perimeter(), price = parseFloat($('price').value);
+    $('tReal').textContent = fmt(Rl); $('hTotal').textContent = fmt(Rl);
+    $('tGround').textContent = fmt(G) + ' m²';
+    $('tMaj').textContent = '+' + fmt(G > 0 ? (Rl / G - 1) * 100 : 0) + ' %';
+    $('tPeri').textContent = fmt(per) + ' m';
+    $('tCost').textContent = (price >= 0 ? Math.round(Rl * price).toLocaleString('fr-FR') : 0) + ' €';
+    const L2 = ['Mesure de toiture – L’Univers de la Rénovation'];
+    const a = $('addr').value.trim(); if (a) L2.push('Adresse : ' + a);
+    L2.push('');
+    data.forEach(({ p, i, ground, real }) => L2.push(`Pan ${i + 1} : emprise ${fmt(ground)} m² · pente ${p.slope || 0} ${p.unit} · surface ${fmt(real)} m²`));
+    if (!data.length) L2.push('Aucun pan mesuré.');
+    else {
+      L2.push('', `Surface réelle : ${fmt(Rl)} m²`, `Emprise au sol : ${fmt(G)} m²`, `Majoration pente : +${fmt((Rl / G - 1) * 100)} %`, `Périmètre : ${fmt(per)} m`);
+      if (price >= 0) L2.push(`Estimation à ${fmt(price, 0)} €/m² : ${Math.round(Rl * price).toLocaleString('fr-FR')} €`);
+    }
+    $('summary').value = L2.join('\n');
+  }
+
+  /* ---------- sauvegarde locale ---------- */
+  function save() {
+    try { localStorage.setItem('toiture-v2', JSON.stringify({ uid, pc, V: [...V.values()], pans, addr: $('addr').value, price: $('price').value, view: { c: map.getCenter(), z: map.getZoom() } })); } catch (e) {}
+  }
+  function load() {
+    try {
+      const s = JSON.parse(localStorage.getItem('toiture-v2') || 'null'); if (!s) return;
+      uid = s.uid; pc = s.pc; s.V.forEach(v => V.set(v.id, v)); pans = s.pans;
+      const d = pans.find(p => !p.closed); draft = d ? d.id : null;
+      $('addr').value = s.addr || ''; if (s.price) $('price').value = s.price;
+      if (s.view) map.setView(s.view.c, s.view.z);
+    } catch (e) {}
+  }
+
+  /* ---------- événements ---------- */
+  map.on('click', e => { if (!aim) tapAt(e.containerPoint); });
+  map.on('mousemove', e => { if (!aim) rbUpdate(e.containerPoint); });
+  map.on('mouseout', () => { if (!aim) { rbg.clearLayers(); markNear(null); } });
+  map.on('move', () => { if (aim) rbUpdate(centerCP()); });
+  map.on('zoomend', () => { shapes(); updateUI(); });
+  map.on('moveend', save);
+
+  $('bPlace').onclick = () => tapAt(centerCP());
+  $('bUndo').onclick = undo;
+  $('bClose').onclick = closeDraft;
+  $('bClear').onclick = clearAll;
+  $('bAim').onclick = () => {
+    aim = !aim; $('cross').hidden = !aim; $('bPlace').hidden = !aim;
+    $('bAim').classList.toggle('on', aim); $('bAim').setAttribute('aria-pressed', aim);
+    rbg.clearLayers(); if (aim) rbUpdate(centerCP()); else markNear(null);
+    updateUI();
+  };
+  $('bBase').onclick = () => {
+    if (baseName === 'esri') { map.removeLayer(esri); ign.addTo(map); baseName = 'ign'; $('bBase').textContent = 'Fond Esri'; }
+    else { map.removeLayer(ign); esri.addTo(map); baseName = 'esri'; $('bBase').textContent = 'Fond IGN'; }
+  };
+  $('bLoc').onclick = () => {
+    if (!navigator.geolocation) { $('geoStatus').textContent = 'Position indisponible sur cet appareil.'; return; }
+    $('geoStatus').textContent = 'Recherche de ta position…';
+    navigator.geolocation.getCurrentPosition(
+      p => { map.setView([p.coords.latitude, p.coords.longitude], 20); $('geoStatus').textContent = ''; updateUI(); },
+      () => { $('geoStatus').textContent = 'Position refusée. Autorise la localisation ou cherche l’adresse.'; },
+      { enableHighAccuracy: true, timeout: 12000 });
+  };
+
+  async function geocode(q) {
+    try {
+      const r = await fetch('https://api-adresse.data.gouv.fr/search/?limit=1&q=' + encodeURIComponent(q));
+      const j = await r.json(), f = j.features && j.features[0];
+      if (f) return { lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], label: f.properties.label };
+    } catch (e) {}
+    try {
+      const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
+      const j = await r.json();
+      if (j[0]) return { lat: +j[0].lat, lng: +j[0].lon, label: j[0].display_name };
+    } catch (e) {}
+    return null;
+  }
+  $('searchForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const q = $('addr').value.trim(); if (!q) return;
+    $('geoStatus').textContent = 'Recherche…';
+    const r = await geocode(q);
+    if (!r) { $('geoStatus').textContent = 'Adresse introuvable. Ajoute le code postal ou la ville.'; return; }
+    map.setView([r.lat, r.lng], 20); $('geoStatus').textContent = ''; $('addr').value = r.label; updateUI(); figures(); save();
+  });
+
+  $('list').addEventListener('input', e => {
+    const li = e.target.closest('.pan'); if (!li || !e.target.matches('[data-slope]')) return;
+    const p = pans.find(x => x.id === +li.dataset.id); if (!p) return;
+    p.slope = e.target.value; shapes(); figures(); save();
+  });
+  $('list').addEventListener('change', e => {
+    const li = e.target.closest('.pan'); if (!li || !e.target.matches('[data-unit]')) return;
+    const p = pans.find(x => x.id === +li.dataset.id); if (!p) return;
+    const v = parseFloat(p.slope) || 0, to = e.target.value;
+    if (to !== p.unit) {
+      p.slope = to === '°' ? Math.round(Math.atan(v / 100) * 1800 / Math.PI) / 10 : Math.round(Math.tan(v * Math.PI / 180) * 1000) / 10;
+      p.unit = to; li.querySelector('[data-slope]').value = p.slope; shapes(); figures(); save();
+    }
+  });
+  $('list').addEventListener('click', e => {
+    const b = e.target.closest('[data-del]'); if (!b) return;
+    const id = +b.closest('.pan').dataset.id;
+    pans = pans.filter(x => x.id !== id); renderList(); sync();
+  });
+  $('price').addEventListener('input', () => { figures(); save(); });
+  $('addr').addEventListener('input', () => { figures(); save(); });
+
+  $('bCopy').onclick = async () => {
+    const st = $('status');
+    try { await navigator.clipboard.writeText($('summary').value); st.textContent = 'Récapitulatif copié.'; }
+    catch (_) { $('sumBox').open = true; $('summary').focus(); $('summary').select(); st.textContent = 'Copie bloquée : le texte est sélectionné, copie-le à la main.'; }
+    setTimeout(() => { st.textContent = ''; }, 4000);
+  };
+
+  load(); renderList(); sync();
+  setTimeout(() => map.invalidateSize(), 200);
+})();
+</script>
+</body>
+</html>
